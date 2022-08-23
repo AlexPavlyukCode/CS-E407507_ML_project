@@ -6,10 +6,11 @@ from sklearn.feature_extraction.text import CountVectorizer
 import re
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.model_selection import cross_validate
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 
+# Function removes all the punctuation, special characters and capital letters
 def text_cleaning(row):
     text = re.sub('[^a-zA-Z]', ' ', row).lower()
     clean_text = " ".join(text.split())
@@ -17,13 +18,19 @@ def text_cleaning(row):
     return clean_text
 
 
+# Reading the data file
 df = pd.read_csv('tweet_data.csv', encoding='latin-1')
+print(f"There are {len(df)} datapoints before filtering.")
 
-# Filtering the dataframe
+# Filtering the dataframe:
+#   1. Remove all columns but 2
+#   2. Drop all the rows with Nan values
+#   3. Renaming columns
 df = df.filter(["user_timezone", "text"])
 df.dropna(axis=0, inplace=True)
 df.reset_index(drop=True, inplace=True)
 df.rename(columns={"user_timezone": "timezone"}, inplace=True)
+print(f"There are {len(df)} clean datapoints before filtering.")
 
 # Conversion into UTC time zones
 df.loc[df["timezone"] == "Cape Verde Is.", "timezone"] = "UTC-1"
@@ -183,25 +190,34 @@ df.loc[df["timezone"] == "Auckland"] = "UTC+12"
 df.loc[df["timezone"] == "Samoa"] = "UTC+13"
 df.loc[df["timezone"] == "Nuku'alofa"] = "UTC+13"
 
+# Counting datapoints for each time zone
 # temp = df.groupby(["timezone"]).count()
 # temp = temp.sort_values(by=["text"], ascending=True)
-# for i in range(155):
+# for i in range(len(np.unique(df["timezone"]))):
 #     print(i, temp.iloc[i])
+# print()
 
 # Keep all labels with more than 100 datapoints
 timezones_to_keep = ["UTC-7", "UTC-4", "UTC-5", "UTC+1", "UTC+2", "UTC-3", "UTC-6",
                      "UTC+3", "UTC-10", "UTC+8", "UTC-8", "UTC+10"]
 df.drop(df[~df["timezone"].isin(timezones_to_keep)].index, inplace=True)
+print(f"There are {len(df)} datapoints after filtering.")
 
-# Encoding timezones
+# Encoding timezones with integer values starting from 0
 le = LabelEncoder()
 df["timezone"] = le.fit_transform(df["timezone"])
 
-# Cleaning the text from uppercase letters and special characters
+# Cleaning the text from uppercase letters, special characters and punctuation
 df["clean_text"] = df["text"].apply(lambda f: text_cleaning(f))
 df.drop(["text"], axis=1, inplace=True)
 
-# Take n features
+# Take n features:
+#   1. Creating CountVectorizer()
+#   2. Counting the number of each word in the whole dataset
+#   3. Get the vocabulary and put into the "names" variable
+#   4. Creating the dataframe from vocabulary and the number of words in the dataset
+#   5. Sorting the dataframe by the number of words in the dataset
+#   6. Choosing n_features most frequent words and adding the rest of them to the stop_words list
 count_vectorizer = CountVectorizer()
 counter = count_vectorizer.fit_transform(df["clean_text"]).toarray()
 word_frequency = counter.sum(axis=0)
@@ -217,7 +233,7 @@ print(f"There are {len(names)} features (unique words) in total, but we get only
 # X_train is a rxc matrix, where r is the number of data points and c is the number of unique words
 tf_idf_vectorizer = TfidfVectorizer(stop_words=list(stop_words))
 X = tf_idf_vectorizer.fit_transform(df["clean_text"]).toarray()
-print(f"The size of feature matrix is {len(X)} x {len(X[0])}")
+print(f"The size of each feature matrix is {len(X)} x {len(X[0])}")
 
 # Get the numpy array of labels
 y = df["timezone"].to_numpy()
@@ -230,46 +246,70 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_st
 log_reg = LogisticRegression(multi_class='ovr')
 log_reg.fit(X_train, y_train)
 
-err_train = log_reg.score(X_train, y_train)
-err_val = log_reg.score(X_val, y_val)
+err_train_log_reg = log_reg.score(X_train, y_train)
+err_val_log_reg = log_reg.score(X_val, y_val)
 print("Logistic regression:")
-print(f"Training error: {round(100*err_train, 2)}%")
-print(f"Validation error: {round(100*err_val, 2)}%")
+print(f"Training error: {round(100 * err_train_log_reg, 2)}%")
+print(f"Validation error: {round(100 * err_val_log_reg, 2)}%")
 print()
-
-# Cross-validation
-# cv_results = cross_validate(log_reg, X, y, cv=3, return_train_score=True)
-#
-# errors_train = cv_results["train_score"]
-# errors_val = cv_results["test_score"]
-#
-# err_train = np.mean(errors_train)
-# err_val = np.mean(errors_val)
-# print(f"Training errors for 5 CV folds are: {errors_train, 2}")
-# print(f"Average training error for 5 CV folds is: {round(100 * err_train, 2)}%")
-# print(f"Validation errors for 5 CV folds are: {errors_val}")
-# print(f"Average validation error for 5 CV folds is: {round(100 * err_val, 2)}%")
 
 # Support Vector Classification with radial-based function as kernel
 svm_rbf = SVC(kernel="rbf")
 svm_rbf.fit(X_train, y_train)
 
-err_train = svm_rbf.score(X_train, y_train)
-err_val = svm_rbf.score(X_val, y_val)
+err_train_svm_rbf = svm_rbf.score(X_train, y_train)
+err_val_svm_rbf = svm_rbf.score(X_val, y_val)
 print("SVC with rbf kernel:")
-print(f"Training error: {round(100*err_train, 2)}%")
-print(f"Validation error: {round(100*err_val, 2)}%")
+print(f"Training error: {round(100 * err_train_svm_rbf, 2)}%")
+print(f"Validation error: {round(100 * err_val_svm_rbf, 2)}%")
 print()
 
-# Support Vector Classification with polynomial function as kernel
-svm_poly = SVC(kernel="poly", degree=3)
-svm_poly.fit(X_train, y_train)
+# Support Vector Classification with polynomial functions as kernel
+svm_poly_2 = SVC(kernel="poly", degree=2)
+svm_poly_2.fit(X_train, y_train)
 
-err_train = svm_poly.score(X_train, y_train)
-err_val = svm_poly.score(X_val, y_val)
+err_train_svm_poly_2 = svm_poly_2.score(X_train, y_train)
+err_val_svm_poly_2 = svm_poly_2.score(X_val, y_val)
+print("SVC with 2nd degree polynomial kernel:")
+print(f"Training error: {round(100 * err_train_svm_poly_2, 2)}%")
+print(f"Validation error: {round(100 * err_val_svm_poly_2, 2)}%")
+print()
+
+svm_poly_3 = SVC(kernel="poly", degree=3)
+svm_poly_3.fit(X_train, y_train)
+
+err_train_svm_poly_3 = svm_poly_3.score(X_train, y_train)
+err_val_svm_poly_3 = svm_poly_3.score(X_val, y_val)
 print("SVC with 3rd degree polynomial kernel:")
-print(f"Training error: {round(100*err_train, 2)}%")
-print(f"Validation error: {round(100*err_val, 2)}%")
+print(f"Training error: {round(100 * err_train_svm_poly_3, 2)}%")
+print(f"Validation error: {round(100 * err_val_svm_poly_3, 2)}%")
+print()
+
+svm_poly_4 = SVC(kernel="poly", degree=4)
+svm_poly_4.fit(X_train, y_train)
+
+err_train_svm_poly_4 = svm_poly_4.score(X_train, y_train)
+err_val_svm_poly_4 = svm_poly_4.score(X_val, y_val)
+print("SVC with 4th degree polynomial kernel:")
+print(f"Training error: {round(100 * err_train_svm_poly_4, 2)}%")
+print(f"Validation error: {round(100 * err_val_svm_poly_4, 2)}%")
+print()
+
+# Plotting training and validation scores of each model
+training_errors = [err_train_log_reg, err_train_svm_rbf, err_train_svm_poly_2, err_train_svm_poly_3,
+                   err_train_svm_poly_4]
+validation_errors = [err_val_log_reg, err_val_svm_rbf, err_val_svm_poly_2, err_val_svm_poly_3,
+                     err_val_svm_poly_4]
+regressions = ["Logistic", "SVM_rbf", "SVM_poly_2", "SVM_poly_3", "SVM_poly_4"]
+
+plt.bar(regressions, training_errors, alpha=0.5, color="b", label="Training score")
+plt.bar(regressions, validation_errors, alpha=0.5, color="g", label="Validation score")
+plt.xlabel("Regression")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.show()
+
+# Tests obtained in experiments
 
 # Test #1
 # The size of feature matrix is 12252 x 200
