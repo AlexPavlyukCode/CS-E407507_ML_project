@@ -240,7 +240,12 @@ y = df["timezone"].to_numpy()
 print(f"There are {len(np.unique(y))} classes (timezones)\n")
 
 # Random training/validation split
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=3)
+X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=0.1, random_state=3)
+X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=3)
+print(f"The size of test set is {len(X_test)}")
+print(f"The size of training set is {len(X_train)}")
+print(f"The size of validation set is {len(X_val)}")
+print()
 
 # Logistic Regression
 log_reg = LogisticRegression(multi_class='ovr')
@@ -290,9 +295,11 @@ svm_poly_4.fit(X_train, y_train)
 
 err_train_svm_poly_4 = svm_poly_4.score(X_train, y_train)
 err_val_svm_poly_4 = svm_poly_4.score(X_val, y_val)
+err_test_svm_poly_4 = svm_poly_4.score(X_test, y_test)
 print("SVC with 4th degree polynomial kernel:")
 print(f"Training error: {round(100 * err_train_svm_poly_4, 2)}%")
 print(f"Validation error: {round(100 * err_val_svm_poly_4, 2)}%")
+print(f"Test error: {round(100 * err_test_svm_poly_4, 2)}%")
 print()
 
 # Plotting training and validation scores of each model
@@ -375,3 +382,37 @@ plt.show()
 # SVC with 3rd degree polynomial kernel:
 # Training error: 94.63%
 # Validation error: 28.2%
+
+# Test #6
+# There are 20050 datapoints before filtering.
+# There are 12252 clean datapoints before filtering.
+# There are 11775 datapoints after filtering.
+# There are 29156 features (unique words) in total, but we get only 2000 out of them
+# The size of each feature matrix is 11775 x 2000
+# There are 12 classes (timezones)
+#
+# The size of test set is 1178
+# The size of training set is 8477
+# The size of validation set is 2120
+#
+# Logistic regression:
+# Training error: 47.19%
+# Validation error: 28.44%
+#
+# SVC with rbf kernel:
+# Training error: 73.48%
+# Validation error: 28.58%
+#
+# SVC with 2nd degree polynomial kernel:
+# Training error: 90.09%
+# Validation error: 29.2%
+#
+# SVC with 3rd degree polynomial kernel:
+# Training error: 94.88%
+# Validation error: 29.58%
+#
+#
+# SVC with 4th degree polynomial kernel:
+# Training error: 95.49%
+# Validation error: 29.25%
+# Test error: 26.9
