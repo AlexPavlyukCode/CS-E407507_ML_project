@@ -415,4 +415,4 @@ plt.show()
 # SVC with 4th degree polynomial kernel:
 # Training error: 95.49%
 # Validation error: 29.25%
-# Test error: 26.9
+# Test error: 26.99%
